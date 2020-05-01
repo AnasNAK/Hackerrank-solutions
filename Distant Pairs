@@ -1,0 +1,114 @@
+#include <cstdio>
+#include <cassert>
+#include <algorithm>
+
+using namespace std;
+
+int dist(int a, int b, int L) {
+  a -= b;
+  if (a < 0) a += L;
+  if (a > L - a) a = L - a;
+  return a;
+}
+
+struct rect {
+  int from1, to1;
+  int from2, to2;
+  int who;
+  int count;
+};
+
+struct event {
+  int x, start, y;
+};
+
+int const M = 1234567;
+int const N = 123456;
+int L;
+int fw[M];
+
+void add(int x, int y) {
+  for (int i = x; i < L; i |= i + 1) fw[i] += y;
+}
+
+int getsum(int x) {
+  int ret = 0;
+  for (int i = x; i >= 0; i = (i & (i + 1)) - 1) {
+    ret += fw[i];
+  }
+  return ret;
+}
+
+int getsum(int l, int r) {
+  return getsum(r) - getsum(l - 1);
+}
+
+int a[N], b[N], order[N], f[N];
+rect rs[3 * N];
+event events[7 * N];
+
+int main() {
+  int n;
+  assert(2 == scanf("%d%d", &n, &L));
+  for (int i = 0; i < n; i++) {
+    assert(2 == scanf("%d%d", a + i, b + i));
+    if (a[i] > b[i]) swap(a[i], b[i]);
+    order[i] = i;
+    f[i] = dist(a[i], b[i], L);
+  }
+  int l = 0;
+  int r = L / 4 + 1;
+  while (l < r - 1) {
+    int mid = (l + r) >> 1;
+    int cn = 0;
+    for (int i = 0; i < n; i++) {
+      if (f[i] < mid) continue;
+      if (f[i] >= 2 * mid && b[i] + mid < L) {
+        rs[cn++] = {a[i] + mid, b[i] - mid, b[i] + mid, min(L - 1, a[i] + L - mid), i, 0};
+      }
+      if (b[i] + 2 * mid < L) {
+        rs[cn++] = {b[i] + mid, min(L - 1, a[i] + L - mid), b[i] + mid, min(L - 1, a[i] + L - mid), i, 0};
+      }
+      if (a[i] >= mid && b[i] + mid < L) {
+        rs[cn++] = {0, a[i] - mid, b[i] + mid, L - 1, i, 0};
+      }
+    }
+    int en = 0;
+    for (int i = 0; i < cn; i++) {
+      events[en++] = {rs[i].from1, -1, i};
+      events[en++] = {rs[i].to1, 1, i};
+    }
+    for (int i = 0; i < n; i++) {
+      if (f[i] < mid) continue;
+      events[en++] = {a[i], 0, b[i]};
+    }
+    sort(events, events + en, [](event const &e1, event const &e2) {
+      if (e1.x != e2.x) return e1.x < e2.x;
+      return e1.start < e2.start;
+    });
+    for (int i = 0; i < L; i++) fw[i] = 0;
+    bool found = false;
+    for (int it = 0; it < en; it++) {
+      event &e = events[it];
+      if (e.start == -1) {
+        rect &cr = rs[e.y];
+        cr.count -= getsum(cr.from2, cr.to2);
+      } else if (e.start == 0) {
+        add(e.y, 1);
+      } else {
+        rect &cr = rs[e.y];
+        cr.count += getsum(cr.from2, cr.to2);
+        if (cr.count > 0) {
+          found = true;
+          break;
+        }
+      }
+    }
+    if (found) {
+      l = mid;
+    } else {
+      r = mid;
+    }
+  }
+  printf("%d\n", l);
+}
