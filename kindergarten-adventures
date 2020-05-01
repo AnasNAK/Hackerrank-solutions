@@ -1,0 +1,197 @@
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.Writer;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.StringTokenizer;
+import java.io.OutputStream;
+import java.io.Reader;
+
+/**
+ * Built using CHelper plug-in
+ * Actual solution is at the top
+ */
+public class Main {
+    public static void main(String[] args) {
+        InputStream inputStream = System.in;
+        OutputStream outputStream = System.out;
+        InputReader in = new InputReader(inputStream);
+        OutputWriter out = new OutputWriter(outputStream);
+        KindergartenAdventures solver = new KindergartenAdventures();
+        solver.solve(1, in, out);
+        out.close();
+    }
+
+    static class KindergartenAdventures {
+        public void solve(int testNumber, InputReader in, OutputWriter out) {
+            int n = in.readInt();
+            if (n < 1 || n > 100000) {
+                throw new RuntimeException("bad n :(");
+            }
+            int[] a = in.readIntArray(n);
+            for (int i : a) {
+                if (i < 0 || i > n) {
+                    throw new RuntimeException("a[i] is bad :(");
+                }
+            }
+            int[] z = new int[2 * n];
+            for (int i = 0; i < 2 * n; i++) {
+                z[i] = i - a[i % n];
+            }
+            SegmentTree tree = new SegmentTree(z);
+            int ans = 0, wh = -1;
+            for (int i = 0; i < n; i++) {
+                int cur = tree.getCount(i, i + n - 1, i);
+                if (ans < cur) {
+                    ans = cur;
+                    wh = i;
+                }
+            }
+            out.printLine(wh + 1);
+        }
+
+    }
+
+    static class OutputWriter {
+        private PrintWriter writer;
+
+        public OutputWriter(Writer writer) {
+            this.writer = new PrintWriter(writer);
+        }
+
+        public OutputWriter(OutputStream stream) {
+            this(new OutputStreamWriter(stream));
+        }
+
+        public void print(Object... args) {
+            for (Object arg : args) {
+                writer.print(arg);
+            }
+        }
+
+        public void printLine(Object... args) {
+            print(args);
+            writer.println();
+        }
+
+        void close() {
+            writer.close();
+        }
+
+    }
+
+    static class SegmentTree {
+        int n;
+        int maxn;
+        int[][] rmq;
+
+        SegmentTree(int[] a) {
+            n = a.length;
+            maxn = 1;
+            while (maxn < n) {
+                maxn *= 2;
+            }
+            rmq = new int[maxn * 2][];
+            for (int i = 0; i < n; i++) {
+                rmq[i + maxn] = new int[]{a[i]};
+            }
+            for (int i = n; i < maxn; i++) {
+                rmq[i + maxn] = new int[]{};
+            }
+            for (int i = maxn - 1; i >= 1; i--) {
+                rmq[i] = Merge.merge(rmq[i * 2], rmq[i * 2 + 1]);
+            }
+        }
+
+        int getLocalValue(int i, int value) {
+            int l = -1, r = rmq[i].length;
+            while (r - l > 1) {
+                int m = (l + r) / 2;
+                if (rmq[i][m] >= value) {
+                    r = m;
+                } else {
+                    l = m;
+                }
+            }
+            return rmq[i].length - r;
+        }
+
+        int getCount(int i, int ll, int rr, int l, int r, int value) {
+            if (ll > r || rr < l) {
+                return 0;
+            }
+            if (l <= ll && rr <= r) {
+                return getLocalValue(i, value);
+            }
+            return getCount(i * 2, ll, (ll + rr) / 2, l, r, value) +
+                    getCount(i * 2 + 1, (ll + rr) / 2 + 1, rr, l, r, value);
+        }
+
+        int getCount(int l, int r, int v) {
+            return getCount(1, 0, maxn - 1, l, r, v);
+        }
+
+    }
+
+    static class Merge {
+        public static int[] merge(int[] a, int[] b) {
+            int[] result = new int[a.length + b.length];
+            int it1 = 0, it2 = 0, it = 0;
+            while (it1 != a.length || it2 != b.length) {
+                if (it1 != a.length && (it2 == b.length || a[it1] < b[it2])) {
+                    result[it++] = a[it1++];
+                } else {
+                    result[it++] = b[it2++];
+                }
+            }
+            return result;
+        }
+
+    }
+
+    static class InputReader {
+        private BufferedReader reader;
+        private StringTokenizer tokenizer;
+
+        public InputReader(Reader reader) {
+            this.reader = new BufferedReader(reader);
+        }
+
+        public InputReader(InputStream stream) {
+            this(new InputStreamReader(stream));
+        }
+
+        public String nextLine() {
+            try {
+                return reader.readLine();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public String readWord() {
+            while (tokenizer == null || !tokenizer.hasMoreTokens()) {
+                tokenizer = new StringTokenizer(nextLine());
+            }
+            return tokenizer.nextToken();
+        }
+
+        public int readInt() {
+            return Integer.parseInt(readWord());
+        }
+
+        public int[] readIntArray(int size) {
+            int[] result = new int[size];
+            for (int i = 0; i < size; i++) {
+                result[i] = readInt();
+            }
+            return result;
+        }
+
+    }
+}
