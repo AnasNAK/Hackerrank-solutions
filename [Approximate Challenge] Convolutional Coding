@@ -1,0 +1,133 @@
+import java.io.{BufferedReader, FileReader, InputStreamReader, Reader}
+
+import scala.collection.mutable
+
+object Solution {
+  object BitPolynomial {
+    def parse(s: String) = {
+      BitPolynomial(Integer.parseInt(s.reverse, 2), s.size)
+    }
+    def apply(mask: Int, length: Int) = {
+      new BitPolynomial(mask, length)
+    }
+  }
+  class BitPolynomial(val mask: Int, val length: Int) {
+    def allMask = (1 << length) - 1
+    def shift = {
+      val newMask = (mask << 1) & allMask
+      BitPolynomial(newMask, length)
+    }
+    def get(i: Int) = ((mask >> i) & 1) == 1
+    def set(i: Int, v: Boolean) = {
+      if (get(i) != v) {
+        val newMask = mask ^ (1 << i)
+        BitPolynomial(newMask, length)
+      } else {
+        this
+      }
+    }
+    def add(v: Boolean) = {
+      shift.set(0, v)
+    }
+    def product(other: BitPolynomial) = {
+      assert(length == other.length)
+      (Integer.bitCount(mask & other.mask) & 1) == 1
+    }
+  }
+  object Coder {
+    def parse(reader: BufferedReader) = {
+      val params = reader.readLine.split(' ').map(x => x.toInt)
+      val n = params.head
+      val ps = Array.ofDim[BitPolynomial](n)
+      for (i <- 0 to n - 1) {
+        ps(i) = BitPolynomial.parse(reader.readLine)
+      }
+      new Coder(ps)
+    }
+  }
+  class Coder(ps: Array[BitPolynomial]) {
+    assert(ps.nonEmpty)
+    def count = ps.size
+    def length = ps(0).length
+    def encode(state: BitPolynomial): Seq[Boolean] = {
+      ps.map(p => p.product(state))
+    }
+    def encode(message: Seq[Boolean]): Seq[Boolean] = {
+      var state = BitPolynomial(0, ps(0).length)
+      (message ++ Array.ofDim[Boolean](length)).map(c => {
+        state = state.add(c)
+        encode(state)
+      }).fold(Seq.empty[Boolean])((x, y) => x ++ y)
+    }
+    def hamming(a: Seq[Boolean], b: Seq[Boolean]) = {
+      assert(a.size == b.size)
+      a.zip(b).count(p => p._1 != p._2)
+    }
+    def decode(message: Seq[Boolean]): Seq[Boolean] = {
+      val INF = 1000000000
+      val origLength = message.size / count
+      val parts = message.grouped(count).toArray
+      val stateCount = 1 << length
+      val d = Array.ofDim[Array[Int]](origLength + 1)
+      val parent = Array.ofDim[Array[Int]](origLength + 1)
+      for (i <- 0 to origLength) {
+        d(i) = Array.ofDim[Int](stateCount)
+        parent(i) = Array.ofDim[Int](stateCount)
+        for (j <- 0 to stateCount - 1) {
+          d(i)(j) = INF
+        }
+      }
+      d(0)(0) = 0
+      for (bitIndex <- 0 to origLength - 1) {
+        for (stateMask <- 0 to stateCount - 1) {
+          if (d(bitIndex)(stateMask) != INF) {
+            val state = BitPolynomial(stateMask, length)
+            val state0 = state.add(false)
+            val state1 = state.add(true)
+            val missCount0 = hamming(encode(state0), parts(bitIndex))
+            val missCount1 = hamming(encode(state1), parts(bitIndex))
+            if (d(bitIndex + 1)(state0.mask) > d(bitIndex)(stateMask) + missCount0) {
+              d(bitIndex + 1)(state0.mask) = d(bitIndex)(stateMask) + missCount0
+              parent(bitIndex + 1)(state0.mask) = stateMask
+            }
+            if (d(bitIndex + 1)(state1.mask) > d(bitIndex)(stateMask) + missCount1) {
+              d(bitIndex + 1)(state1.mask) = d(bitIndex)(stateMask) + missCount1
+              parent(bitIndex + 1)(state1.mask) = stateMask
+            }
+          }
+        }
+      }
+      var path = List[Boolean]()
+      var bitIndex = origLength
+      var stateMask = 0
+      while (bitIndex != 0) {
+        path = ((stateMask & 1) == 1) :: path
+        stateMask = parent(bitIndex)(stateMask)
+        bitIndex -= 1
+      }
+      path.take(origLength - length)
+    }
+  }
+  def readMessage(reader: BufferedReader): Seq[Boolean] = {
+    val builder = mutable.StringBuilder.newBuilder
+    var line = reader.readLine
+    while (line != null) {
+      builder.append(line)
+      line = reader.readLine
+    }
+    builder.result().map(c => c == '1')
+  }
+  def format(data: Seq[Boolean]): String = {
+    data.foldLeft(mutable.StringBuilder.newBuilder)((b, c) => b.append(if (c) 1 else 0)).result()
+  }
+  def solve(iStreamReader: Reader): Unit = {
+    val reader = new BufferedReader(iStreamReader)
+    val decoder = Coder.parse(reader)
+    val encoder = Coder.parse(reader)
+    val message = readMessage(reader)
+    val decodedMessage = decoder.decode(message)
+    println(format(encoder.encode(decodedMessage)))
+  }
+  def main(arguments: Array[String]) =
+    solve(if (arguments.length == 0) new InputStreamReader(System.in) else new FileReader(arguments(0)))
+}
