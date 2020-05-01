@@ -1,0 +1,41 @@
+LIM = 1111
+S = [0.0]*LIM # precompute S[n] = sum(0<=k<n) 2^(k-1)/(k+1)
+p2 = 0.5
+for i in xrange(1,LIM): 
+    S[i] = S[i-1] + p2/i
+    p2 *= 2
+
+def bit_length(n):
+    ''' Length of the binary representation of n '''
+    return len(bin(n)[2:])
+
+def bit_count(n):
+    ''' Number of 1 bits of n '''
+    return sum(map(int, bin(n)[2:]))
+
+def bit_sum(n):
+    ''' sum of bit_count(k) for 0<=k<n '''
+    return b1(n, bit_count(n)) + b2(n)
+
+def b1(n,b):
+    if n == 0: return 0
+    if n & 1:  return b1(n-1, b-1) + b-1
+    return b1(n>>1, b) << 1
+
+def b2(n):
+    if n == 0: return 0
+    return (b2(n>>1) << 1) + (n>>1)
+
+for cas in xrange(input()):
+    A, B = map(int, raw_input().strip().split())
+    C = B+1. - A
+
+    lA, bA = bit_length(A),   bit_sum(A)
+    lB, bB = bit_length(B+1), bit_sum(B+1)
+    fA = S[lA] + bA/float(lA)
+    fB = S[lB] + bB/float(lB)
+
+    print "%.5f %.5f" % (
+        (fB - fA) / C,
+        (bB - bA) / C,
+    )
