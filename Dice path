@@ -1,0 +1,82 @@
+---{{{
+import Data.List
+import Data.Char
+import qualified Data.Vector as V
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HM
+import Control.Applicative
+import Data.Maybe
+import Text.Printf                           -- printf "%0.6f" (1.0)
+import Control.Monad
+-- }}}
+
+data Dice = Dice {
+      top   :: Int
+    , bot   :: Int
+    , left  :: Int
+    , right :: Int
+    , front :: Int
+    , back  :: Int
+  } deriving (Show, Eq, Ord)
+
+
+pair1 = [(1, 6), (6, 1)]
+pair2 = [(2, 5), (5, 2)]
+pair3 = [(3, 4), (4, 3)]
+
+getDice (a1, a2) (b1, b2) (c1, c2) = Dice a1 a2 b1 b2 c1 c2
+
+dices :: V.Vector Dice
+dices = V.fromList. sort. concat $ [
+                          [
+                              getDice a b c, getDice a c b, getDice b a c
+                            , getDice b c a, getDice c a b, getDice c b a
+                          ]
+                          | a <- pair1, b <- pair2, c <- pair3
+                        ]
+
+diceMap :: Map.Map Dice Int
+diceMap = Map.fromList. zip (V.toList dices) $ [0..]
+
+rollUp :: Dice -> Dice
+rollUp (Dice top1 bot1 left1 right1 front1 back1) =
+  Dice front1 back1 left1 right1 bot1 top1
+
+rollLeft :: Dice -> Dice
+rollLeft (Dice top1 bot1 left1 right1 front1 back1) =
+  Dice right1 left1 top1 bot1 front1 back1
+
+initialOrientation :: Dice
+initialOrientation = Dice 1 6 3 4 2 5
+
+getIdx :: Dice -> Int
+getIdx d = Map.findWithDefault (-1) d diceMap
+
+sz :: Int
+sz = 60
+
+ans :: V.Vector (V.Vector (V.Vector Int))
+ans = V.fromList [ V.fromList [ V.fromList [ solve m n f1 | f1 <- [0..(fLen-1)]] | n <- [0..sz]] | m <- [0..sz]]
+  where
+    fLen = V.length dices
+    solve y x f
+      | y <= 0 || x <= 0 = -1
+      | y == 1 && x == 1 && initialOrientation == dice = curSum
+      | y == 1 && x == 1 = -1
+      | otherwise = curAns
+        where
+          dice = dices V.! f
+          curSum = top dice
+          leftRoll = getIdx. rollLeft $ dice
+          upRoll = getIdx. rollUp $ dice
+          leftAns = ans V.! y V.! (x-1) V.! leftRoll
+          upAns = ans V.! (y-1) V.! x V.! upRoll
+          bestAns = max leftAns upAns
+          curAns = if bestAns == -1 then -1 else bestAns + curSum
+
+main :: IO ()
+main = getContents >>= mapM_ print. validate. map (map read. words). lines
+
+validate :: [[Int]] -> [Int]
+validate ([t]:left) = map (\[m, n] -> V.maximum (ans V.! m V.! n)) left
