@@ -1,0 +1,81 @@
+#include <stdio.h>
+#define N 111111
+double condp1[6][6];
+double ps[N][6];
+double condps[N][6];
+double p[6];
+
+int main() {
+    for (int i = 0; i < 6; i++) scanf("%lf", p + i);
+    int n;
+    scanf("%d", &n);
+
+    // compute condp1
+    for (int v = 0; v < 6; v++) {
+        for (int w = 0; w < 6; w++) {
+            if (w == v) continue;
+            condp1[v][w] = p[w] / (1 - p[v]);
+        }
+    }
+
+    // compute ps
+    for (int v = 0; v < 6; v++) {
+        ps[0][v] = p[v];
+    }
+    for (int i = 1; i < n; i++) {
+        for (int v = 0; v < 6; v++) {
+            for (int w = 0; w < 6; w++) {
+                ps[i][w] += ps[i-1][v] * condp1[v][w];
+            }
+        }
+    }
+
+    // compute expec
+    double expec = 0.0;
+    for (int i = 0; i < n; i++) {
+        for (int v = 0; v < 6; v++) {
+            expec += ps[i][v] * (v+1);
+        }
+    }
+
+    // compute var
+    double adj = expec / n;
+    double var = 0.0;
+    for (int i = 0; i < n; i++) {
+        for (int v = 0; v < 6; v++) {
+            var += ps[i][v] * (v-adj+1) * (v-adj+1);
+        }
+    }
+
+    for (int v = 0; v < 6; v++) {
+        // compute condps
+        for (int w = 0; w < 6; w++) {
+            condps[0][w] = 0.0;
+        }
+        condps[0][v] = 1.0;
+        for (int i = 1; i < n; i++) {
+            for (int w = 0; w < 6; w++) {
+                condps[i][w] = 0;
+            }
+            for (int w = 0; w < 6; w++) {
+                for (int x = 0; x < 6; x++) {
+                    condps[i][x] += condps[i-1][w] * condp1[w][x];
+                }
+            }
+        }
+
+        // adjust expec2
+        double t = 0.0;
+        for (int i = 1; i < n; i++) {
+            t += ps[i-1][v];
+            double u = 0;
+            for (int w = 0; w < 6; w++) {
+                u += condps[n-i][w] * (w-adj+1);
+            }
+            var += u * t * (v-adj+1) * 2;
+        }
+    }
+
+    printf("%.11f\n", expec);
+    printf("%.11f\n", var);
+}
