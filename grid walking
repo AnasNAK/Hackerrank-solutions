@@ -1,0 +1,60 @@
+#include <stdio.h>
+#define MOD 1000000007
+#define MAX_N 13
+#define MAX_D 103
+#define MAX_M 303
+typedef long long int LL;
+
+int way[MAX_D][MAX_D][MAX_M], dp[MAX_N][MAX_M], D[MAX_N], P[MAX_N],
+    ncr[MAX_M][MAX_M];
+
+int main() {
+  int i, j, k, t, pos, limit, move, idx, ttl, N, M, previous;
+
+  for (i = 0; i <= MAX_M - 3; i++) {
+    for (j = 0; j <= i; j++) {
+      if (j == 0 || j == i)
+        ncr[i][j] = 1;
+      else
+        ncr[i][j] = (ncr[i - 1][j - 1] + ncr[i - 1][j]) % MOD;
+    }
+  }
+
+  for (move = 0; move <= MAX_M - 3; move++) {
+    for (limit = 1; limit <= MAX_D - 3; limit++) {
+      for (pos = 1; pos <= limit; pos++) {
+        if (move)
+          way[pos][limit][move] =
+              (way[pos - 1][limit][move - 1] + way[pos + 1][limit][move - 1]) %
+              MOD;
+        else
+          way[pos][limit][move] = 1;
+      }
+    }
+  }
+
+  scanf("%d", &t);
+  while (t--) {
+    scanf("%d %d", &N, &M);
+    for (i = 1; i <= N; i++)
+      scanf("%d", P + i);
+    for (i = 1; i <= N; i++)
+      scanf("%d", D + i);
+
+    dp[0][0] = 1;
+    for (idx = 1; idx <= N; idx++)
+      for (move = 0; move <= M; move++) {
+        dp[idx][move] = 0;
+        for (previous = 0; previous <= move; previous++) {
+          LL temp =
+              ((LL)ncr[move][previous] * way[P[idx]][D[idx]][move - previous]) %
+              MOD;
+          temp = (temp * dp[idx - 1][previous]) % MOD;
+          dp[idx][move] = (dp[idx][move] + temp) % MOD;
+        }
+      }
+
+    printf("%d\n", dp[N][M]);
+  }
+  return 0;
+}
